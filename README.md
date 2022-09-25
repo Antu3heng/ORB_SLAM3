@@ -1,5 +1,9 @@
 # ORB-SLAM3
 
+-------------------------------
++ Add the function for imu-rate odometry output, see
+-------------------------------
+
 ### V1.0, December 22th, 2021
 **Authors:** Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, [José M. M. Montiel](http://webdiis.unizar.es/~josemari/), [Juan D. Tardos](http://webdiis.unizar.es/~jdtardos/).
 

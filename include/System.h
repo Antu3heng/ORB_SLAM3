@@ -27,6 +27,7 @@
 #include<string>
 #include<thread>
 #include<opencv2/core/core.hpp>
+#include <Eigen/Core>
 
 #include "Tracking.h"
 #include "FrameDrawer.h"
@@ -43,6 +44,14 @@
 
 namespace ORB_SLAM3
 {
+
+struct PVQ
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    Eigen::Vector3f pos, vel;
+    Eigen::Quaternionf q;
+    bool is_valid = false;
+};
 
 class Verbose
 {
@@ -120,6 +129,7 @@ public:
     // Returns the camera pose (empty if tracking fails).
     Sophus::SE3f TrackMonocular(const cv::Mat &im, const double &timestamp, const vector<IMU::Point>& vImuMeas = vector<IMU::Point>(), string filename="");
 
+    PVQ TrackIMU(const IMU::Point &ImuMeas);
 
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();

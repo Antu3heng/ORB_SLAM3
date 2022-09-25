@@ -52,6 +52,7 @@ class LocalMapping;
 class LoopClosing;
 class System;
 class Settings;
+struct PVQ;
 
 class Tracking
 {  
@@ -73,7 +74,7 @@ public:
     Sophus::SE3f GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp, string filename);
     Sophus::SE3f GrabImageMonocular(const cv::Mat &im, const double &timestamp, string filename);
 
-    void GrabImuData(const IMU::Point &imuMeasurement);
+    PVQ GrabImuData(const IMU::Point &imuMeasurement);
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
@@ -240,6 +241,7 @@ protected:
     // Vector of IMU measurements from previous to current frame (to be filled by PreintegrateIMU)
     std::vector<IMU::Point> mvImuFromLastFrame;
     std::mutex mMutexImuQueue;
+    std::mutex mMutexPropagate;
 
     // Imu calibration parameters
     IMU::Calib *mpImuCalib;
@@ -356,6 +358,15 @@ protected:
     Sophus::SE3f mTlr;
 
     void newParameterLoader(Settings* settings);
+
+    // use for imu-rate track
+    void FastPredictIMU(const IMU::Point &imuMeasurement);
+    void UpdateLatestState();
+    static Eigen::Quaternionf getQuaternionFromAngle(const Eigen::Vector3f &theta);
+    Eigen::Vector3f mLatest_pos, mLatest_vel, mLatest_ba, mLatest_bg;
+    Eigen::Matrix3f mLatest_Rwb;
+    Eigen::Vector3f mLatest_acc, mLatest_gyro;
+    double mLatest_t;
 
 #ifdef REGISTER_LOOP
     bool Stop();

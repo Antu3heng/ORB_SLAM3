@@ -55,6 +55,12 @@ Examples/Tests/sophus_test
 Examples/ROS/ORB_SLAM3/CMakeLists.txt.user
 Examples/ROS/ORB_SLAM3/build/
 
+Example_ROS/.catkin_tools
+Example_ROS/devel
+Example_ROS/logs
+
+FrameTrajectory_*.txt
+KeyFrameTrajectory_*.txt
 KeyFrameTrajectory.txt
 CameraTrajectory.txt
 kf_*.txt
@@ -71,6 +77,7 @@ lib/
 
 cmake_modules/
 cmake-build-debug/
+cmake-build-release/
 
 ExecMean.txt
 SessionInfo.txt

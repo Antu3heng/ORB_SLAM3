@@ -1615,10 +1615,24 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
 }
 
 
-void Tracking::GrabImuData(const IMU::Point &imuMeasurement)
+PVQ Tracking::GrabImuData(const IMU::Point &imuMeasurement)
 {
-    unique_lock<mutex> lock(mMutexImuQueue);
-    mlQueueImuData.push_back(imuMeasurement);
+    {
+        unique_lock<mutex> lock(mMutexImuQueue);
+        mlQueueImuData.push_back(imuMeasurement);
+    }
+    if (mState == OK || mState == RECENTLY_LOST)
+    {
+        unique_lock<mutex> lock(mMutexPropagate);
+        FastPredictIMU(imuMeasurement);
+        PVQ res;
+        res.pos = mLatest_pos;
+        res.vel = mLatest_vel;
+        res.q = Eigen::Quaternionf(mLatest_Rwb);
+        res.is_valid = true;
+        return res;
+    }
+    return {};
 }
 
 void Tracking::PreintegrateIMU()
@@ -2294,7 +2308,7 @@ void Tracking::Track()
         mLastFrame = Frame(mCurrentFrame);
     }
 
-
+    UpdateLatestState();
 
 
     if(mState==OK || mState==RECENTLY_LOST)
@@ -4081,6 +4095,54 @@ void Tracking::SaveSubTrajectory(string strNameFile_frames, string strNameFile_k
 float Tracking::GetImageScale()
 {
     return mImageScale;
+}
+
+void Tracking::UpdateLatestState()
+{
+    unique_lock<mutex> lock(mMutexPropagate);
+    mLatest_pos = mLastFrame.GetImuPosition();
+    mLatest_Rwb = mLastFrame.GetImuRotation();
+    mLatest_vel = mLastFrame.GetVelocity();
+    mLatest_ba = Eigen::Vector3f(mLastFrame.mImuBias.bax, mLastFrame.mImuBias.bay, mLastFrame.mImuBias.baz);
+    mLatest_bg = Eigen::Vector3f(mLastFrame.mImuBias.bwx, mLastFrame.mImuBias.bwy, mLastFrame.mImuBias.bwz);
+    mLatest_t = mLastFrame.mTimeStamp;
+    mLatest_acc = mvImuFromLastFrame.back().a;
+    mLatest_gyro = mvImuFromLastFrame.back().w;
+    for (auto &imuData : mlQueueImuData)
+        FastPredictIMU(imuData);
+}
+
+void Tracking::FastPredictIMU(const IMU::Point &imuMeasurement)
+{
+    if (imuMeasurement.t <= mLatest_t)
+        return;
+
+    const Eigen::Vector3f Gz(0, 0, -IMU::GRAVITY_VALUE);
+    double dt = imuMeasurement.t - mLatest_t;
+    mLatest_t = imuMeasurement.t;
+    Eigen::Vector3f theta = (0.5 * (imuMeasurement.w + mLatest_gyro) - mLatest_bg) * dt;
+    mLatest_Rwb = IMU::NormalizeRotation(mLatest_Rwb * getQuaternionFromAngle(theta).toRotationMatrix());
+    Eigen::Vector3f unacc0 = mLatest_Rwb * (imuMeasurement.a - mLatest_ba) + Gz;
+    Eigen::Vector3f unacc1 = mLatest_Rwb * (mLatest_acc - mLatest_ba) + Gz;
+    Eigen::Vector3f unacc = 0.5 * (unacc0 + unacc1);
+    mLatest_pos = mLatest_pos + mLatest_vel * dt + 0.5f * dt * dt * unacc;
+    mLatest_vel = mLatest_vel + unacc * dt;
+    mLatest_acc = imuMeasurement.a;
+    mLatest_gyro = imuMeasurement.w;
+}
+
+Eigen::Quaternionf Tracking::getQuaternionFromAngle(const Eigen::Vector3f &theta)
+{
+    const float q_squared = theta.squaredNorm() / 4.0f;
+
+    if (q_squared < 1)
+        return {sqrt(1 - q_squared), theta[0] * 0.5f, theta[1] * 0.5f, theta[2] * 0.5f};
+    else
+    {
+        const float w = 1.0f / sqrt(1 + q_squared);
+        const float f = w * 0.5f;
+        return {w, theta[0] * f, theta[1] * f, theta[2] * f};
+    }
 }
 
 #ifdef REGISTER_LOOP

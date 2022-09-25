@@ -1545,5 +1545,11 @@ string System::CalculateCheckSum(string filename, int type)
     return checksum;
 }
 
+    PVQ System::TrackIMU(const IMU::Point &ImuMeas)
+    {
+        auto pvq = mpTracker->GrabImuData(ImuMeas);
+        return pvq;
+    }
+
 } //namespace ORB_SLAM
 
