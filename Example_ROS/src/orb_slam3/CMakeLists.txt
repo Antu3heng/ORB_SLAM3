@@ -58,3 +58,9 @@ target_link_libraries(ros_stereo
   ${catkin_LIBRARIES}
   ${LIBS}
 )
+
+add_executable(ros_rgbd_inertial src/ros_rgbd_inertial.cc)
+target_link_libraries(ros_rgbd_inertial
+  ${catkin_LIBRARIES}
+  ${LIBS}
+)

@@ -1621,9 +1621,9 @@ PVQ Tracking::GrabImuData(const IMU::Point &imuMeasurement)
         unique_lock<mutex> lock(mMutexImuQueue);
         mlQueueImuData.push_back(imuMeasurement);
     }
-    if (mState == OK || mState == RECENTLY_LOST)
+    unique_lock<mutex> lock(mMutexPropagate);
+    if (mpAtlas->GetCurrentMap()->isImuInitialized() && is_valid)
     {
-        unique_lock<mutex> lock(mMutexPropagate);
         FastPredictIMU(imuMeasurement);
         PVQ res;
         res.pos = mLatest_pos;
@@ -2308,14 +2308,13 @@ void Tracking::Track()
         mLastFrame = Frame(mCurrentFrame);
     }
 
-    UpdateLatestState();
-
 
     if(mState==OK || mState==RECENTLY_LOST)
     {
         // Store frame pose information to retrieve the complete camera trajectory afterwards.
         if(mCurrentFrame.isSet())
         {
+            UpdateLatestState();
             Sophus::SE3f Tcr_ = mCurrentFrame.GetPose() * mCurrentFrame.mpReferenceKF->GetPoseInverse();
             mlRelativeFramePoses.push_back(Tcr_);
             mlpReferences.push_back(mCurrentFrame.mpReferenceKF);
@@ -4100,6 +4099,8 @@ float Tracking::GetImageScale()
 void Tracking::UpdateLatestState()
 {
     unique_lock<mutex> lock(mMutexPropagate);
+    if (!is_valid && mpLastKeyFrame->bImu)
+        is_valid = true;
     mLatest_pos = mLastFrame.GetImuPosition();
     mLatest_Rwb = mLastFrame.GetImuRotation();
     mLatest_vel = mLastFrame.GetVelocity();
@@ -4114,8 +4115,8 @@ void Tracking::UpdateLatestState()
 
 void Tracking::FastPredictIMU(const IMU::Point &imuMeasurement)
 {
-    if (imuMeasurement.t <= mLatest_t)
-        return;
+    // if (imuMeasurement.t <= mLatest_t)
+    //     return;
 
     const Eigen::Vector3f Gz(0, 0, -IMU::GRAVITY_VALUE);
     double dt = imuMeasurement.t - mLatest_t;

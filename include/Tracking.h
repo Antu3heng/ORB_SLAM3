@@ -367,6 +367,7 @@ protected:
     Eigen::Matrix3f mLatest_Rwb;
     Eigen::Vector3f mLatest_acc, mLatest_gyro;
     double mLatest_t;
+    bool is_valid = false;
 
 #ifdef REGISTER_LOOP
     bool Stop();
